@@ -968,9 +968,14 @@ export class MCPServer extends MCPServerBase {
     const resourceUri = uiResourceUri(tool.mcp?._meta);
     const meta = resourceUri ? { _meta: { ui: { resourceUri }, [RESOURCE_URI_META_KEY]: resourceUri } } : {};
     if (!tool.outputSchema) {
+      // A tool that ran and returned nothing must not produce an empty text block:
+      // JSON.stringify(undefined) is undefined, and the SDK then replaces the whole
+      // result with a protocol error even though the tool already ran. Serialise a
+      // void result as null, matching the agent loop (#27392).
+      const text = typeof value === 'string' ? value : JSON.stringify(value ?? null);
       return {
         isError: false,
-        content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
+        content: [{ type: 'text', text }],
         ...meta,
       };
     }
